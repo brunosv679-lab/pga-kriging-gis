@@ -1,27 +1,9 @@
-# Ambientes Virtuais
 venv/
-env/
-ENV/
 .venv/
-
-# Variáveis de Ambiente e Segredos
 .env
-.env.local
-.env.*.local
-
-# Python Cache e Bytecode
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-
-# Testes e Cobertura
 .pytest_cache/
-.coverage
-htmlcov/
-
-# Logs e Arquivos Temporários
 *.log
-*.tmp
-.DS_Store
-Thumbs.db
+app.log
+.vscode/
