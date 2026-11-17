@@ -1,2 +1,18 @@
+[project]
+name = "pga-kriging-gis"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "flask",
+    "flask-sqlalchemy",
+    "psycopg[binary]",
+    "geoalchemy2",
+    "pykrige",
+    "numpy",
+    "scipy",
+    "python-dotenv",
+    "gunicorn"
+]
+
 [tool.vercel]
 entrypoint = "run:app"
