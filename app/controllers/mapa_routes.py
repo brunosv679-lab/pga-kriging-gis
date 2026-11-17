@@ -212,6 +212,38 @@ def seed_brasil():
     except Exception as ex:
         return jsonify({"status": "error", "message": f"Falha ao importar dataset Brasil Completo: {str(ex)}"}), 500
 
+@mapa_bp.route("/api/estacoes/seed-5anos", methods=["POST"])
+@csrf.exempt
+def seed_5anos():
+    """
+    Carrega automaticamente o dataset sísmico dos últimos 5 anos (2021-2026)
+    a partir de data/estacoes_pga_brasil_2021_2026.csv no PostGIS.
+    """
+    base_dir = os.path.abspath(os.path.join(current_app.root_path, ".."))
+    csv_path = os.path.join(base_dir, "data", "estacoes_pga_brasil_2021_2026.csv")
+
+    if not os.path.exists(csv_path):
+        csv_path = "data/estacoes_pga_brasil_2021_2026.csv"
+
+    if not os.path.exists(csv_path):
+        return jsonify({
+            "status": "error",
+            "message": f"Arquivo de dados não encontrado: {csv_path}"
+        }), 404
+
+    try:
+        result = DataImporterService.import_local_file(csv_path)
+        total_atual = EstacaoPGA.query.count()
+        return jsonify({
+            "status": "success",
+            "message": "Dataset Histórico Brasil (Últimos 5 Anos: 2021–2026) importado com sucesso! 40 eventos sísmicos representativos.",
+            "processados": result["processados"],
+            "total_banco": total_atual,
+            "detalhes": result
+        }), 200
+    except Exception as ex:
+        return jsonify({"status": "error", "message": f"Falha ao importar dataset 5 anos: {str(ex)}"}), 500
+
 @mapa_bp.route("/api/estacoes/exportar-csv", methods=["GET"])
 def exportar_csv():
     """Gera e retorna um arquivo CSV com todas as estações cadastradas no PostGIS."""

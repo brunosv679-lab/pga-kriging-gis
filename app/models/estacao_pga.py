@@ -19,6 +19,8 @@ class EstacaoPGA(db.Model):
     longitude = db.Column(db.Float, nullable=False)
     profundidade_km = db.Column(db.Float, nullable=True, default=10.0)
     pga_g = db.Column(db.Float, nullable=False)
+    ano_evento = db.Column(db.Integer, nullable=True)
+    magnitude_mw = db.Column(db.Float, nullable=True)
 
     # Campo espacial Point em WGS84 (SRID 4326) com índice espacial GIST
     geom = db.Column(Geometry(geometry_type="POINT", srid=4326, spatial_index=True), nullable=False)
@@ -30,7 +32,7 @@ class EstacaoPGA(db.Model):
         Index("idx_estacoes_pga_geom_gist", "geom", postgresql_using="gist"),
     )
 
-    def __init__(self, codigo_estacao, latitude, longitude, pga_g, municipio_uf=None, profundidade_km=10.0, regiao=None):
+    def __init__(self, codigo_estacao, latitude, longitude, pga_g, municipio_uf=None, profundidade_km=10.0, regiao=None, ano_evento=None, magnitude_mw=None):
         self.codigo_estacao = codigo_estacao.strip().upper()
         self.latitude = float(latitude)
         self.longitude = float(longitude)
@@ -38,6 +40,8 @@ class EstacaoPGA(db.Model):
         self.municipio_uf = municipio_uf.strip() if municipio_uf else None
         self.profundidade_km = float(profundidade_km) if profundidade_km is not None else 10.0
         self.regiao = regiao.strip() if regiao else None
+        self.ano_evento = int(ano_evento) if ano_evento is not None else None
+        self.magnitude_mw = float(magnitude_mw) if magnitude_mw is not None else None
         # PostGIS POINT(longitude latitude) para X Y
         self.geom = WKTElement(f"POINT({self.longitude} {self.latitude})", srid=4326)
 
@@ -52,6 +56,8 @@ class EstacaoPGA(db.Model):
             "longitude": self.longitude,
             "profundidade_km": self.profundidade_km,
             "pga_g": self.pga_g,
+            "ano_evento": self.ano_evento,
+            "magnitude_mw": self.magnitude_mw,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
@@ -73,6 +79,8 @@ class EstacaoPGA(db.Model):
                 "longitude": self.longitude,
                 "profundidade_km": self.profundidade_km if self.profundidade_km is not None else 10.0,
                 "pga_g": self.pga_g,
+                "ano_evento": self.ano_evento,
+                "magnitude_mw": self.magnitude_mw,
                 "created_at": self.created_at.isoformat() if self.created_at else None
             }
         }

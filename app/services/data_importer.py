@@ -29,13 +29,14 @@ def sanitize_text(text_str, max_len=100):
     cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
     return cleaned[:max_len]
 
-def validate_physical_records(code, lat, lon, pga, municipio=None, profundidade=10.0, regiao=None):
+def validate_physical_records(code, lat, lon, pga, municipio=None, profundidade=10.0, regiao=None, ano_evento=None, magnitude_mw=None):
     """
     Valida limites físicos rigorosos:
     - Latitude: [-90.0, 90.0]
     - Longitude: [-180.0, 180.0]
     - PGA: > 0.0 g e <= 5.0 g
     - Profundidade: >= 0.0 km e <= 700.0 km
+    - ano_evento e magnitude_mw são opcionais
     """
     code_clean = sanitize_station_code(code)
     if not code_clean:
@@ -61,6 +62,21 @@ def validate_physical_records(code, lat, lon, pga, municipio=None, profundidade=
     municipio_clean = sanitize_text(municipio, max_len=100) if municipio else None
     regiao_clean = sanitize_text(regiao, max_len=50) if regiao else None
 
+    # Campos opcionais: ano_evento e magnitude_mw
+    ano_f = None
+    if ano_evento is not None and str(ano_evento).strip() != "":
+        try:
+            ano_f = int(float(str(ano_evento).strip()))
+        except (ValueError, TypeError):
+            ano_f = None
+
+    mag_f = None
+    if magnitude_mw is not None and str(magnitude_mw).strip() != "":
+        try:
+            mag_f = round(float(str(magnitude_mw).strip()), 2)
+        except (ValueError, TypeError):
+            mag_f = None
+
     return {
         "codigo": code_clean,
         "municipio": municipio_clean,
@@ -68,7 +84,9 @@ def validate_physical_records(code, lat, lon, pga, municipio=None, profundidade=
         "lat": round(lat_f, 6),
         "lon": round(lon_f, 6),
         "pga": round(pga_f, 5),
-        "prof": round(prof_f, 2)
+        "prof": round(prof_f, 2),
+        "ano_evento": ano_f,
+        "magnitude_mw": mag_f
     }
 
 def find_column_index(col_map, candidates):
@@ -86,10 +104,12 @@ class DataImporterService:
 
     UPSERT_SQL = text("""
         INSERT INTO estacoes_pga (
-            codigo_estacao, municipio_uf, regiao, latitude, longitude, profundidade_km, pga_g, geom
+            codigo_estacao, municipio_uf, regiao, latitude, longitude, profundidade_km, pga_g, geom,
+            ano_evento, magnitude_mw
         ) VALUES (
             :codigo, :municipio, :regiao, :lat, :lon, :prof, :pga,
-            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)
+            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326),
+            :ano_evento, :magnitude_mw
         )
         ON CONFLICT (codigo_estacao) DO UPDATE SET
             municipio_uf = EXCLUDED.municipio_uf,
@@ -98,7 +118,9 @@ class DataImporterService:
             longitude = EXCLUDED.longitude,
             profundidade_km = EXCLUDED.profundidade_km,
             pga_g = EXCLUDED.pga_g,
-            geom = EXCLUDED.geom;
+            geom = EXCLUDED.geom,
+            ano_evento = EXCLUDED.ano_evento,
+            magnitude_mw = EXCLUDED.magnitude_mw;
     """)
 
     @classmethod
@@ -122,6 +144,8 @@ class DataImporterService:
         mun_idx = find_column_index(col_map, ["municipio_uf", "municipio", "cidade", "city", "local"])
         prof_idx = find_column_index(col_map, ["profundidade_km", "profundidade", "depth", "prof"])
         reg_idx = find_column_index(col_map, ["regiao", "region", "macroregiao"])
+        ano_idx = find_column_index(col_map, ["ano_evento", "ano", "year"])
+        mag_idx = find_column_index(col_map, ["magnitude_mw", "magnitude", "mag", "mw"])
 
         missing = []
         if code_idx is None: missing.append("codigo_estacao")
@@ -148,9 +172,12 @@ class DataImporterService:
                 raw_mun = row[mun_idx] if mun_idx is not None and mun_idx < len(row) else None
                 raw_prof = row[prof_idx] if prof_idx is not None and prof_idx < len(row) else 10.0
                 raw_reg = row[reg_idx] if reg_idx is not None and reg_idx < len(row) else None
+                raw_ano = row[ano_idx] if ano_idx is not None and ano_idx < len(row) else None
+                raw_mag = row[mag_idx] if mag_idx is not None and mag_idx < len(row) else None
 
                 record = validate_physical_records(
-                    raw_code, raw_lat, raw_lon, raw_pga, raw_mun, raw_prof, raw_reg
+                    raw_code, raw_lat, raw_lon, raw_pga, raw_mun, raw_prof, raw_reg,
+                    ano_evento=raw_ano, magnitude_mw=raw_mag
                 )
                 valid_records.append(record)
             except Exception as e:
